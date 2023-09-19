@@ -3,7 +3,7 @@
 
 ### create-multipass-vm
 
-You might need to destroy your default vm with `multipass delete --all`
+You might need to destroy your default vm with `multipass delete stunning-fantail`, then `multipass purge`
 
 ```sh
 multipass launch -n stunning-fantail --disk 10G --cloud-init cloud-init.yaml --verbose
@@ -13,6 +13,12 @@ multipass launch -n stunning-fantail --disk 10G --cloud-init cloud-init.yaml --v
 
 ```sh
 multipass info stunning-fantail
+```
+
+### get-multipass-ip
+
+```sh
+multipass info stunning-fantail --format=json | jq -r '.info."stunning-fantail".ipv4[0]'
 ```
 
 ### ssh
