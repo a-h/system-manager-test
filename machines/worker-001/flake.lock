@@ -244,6 +244,7 @@
       "original": {
         "owner": "numtide",
         "repo": "system-manager",
+        "rev": "e8957ab8b4cf02574adb5f09ef4a2ef9ee48ef01",
         "type": "github"
       }
     },
