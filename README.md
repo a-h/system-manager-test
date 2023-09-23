@@ -1,22 +1,45 @@
-
 ## Tasks
 
-### create-multipass-vm
+### manager-vm-create
 
-Create a new VM. If it already exists, delete it with `multipass delete worker-001`, then `multipass purge`
-
-```sh
-multipass launch -n worker-001 --disk 10G --cloud-init cloud-init.yaml --verbose
-```
-
-### get-multipass-ip
+Create a new VM. If it already exists, delete it with `multipass delete manager`, then `multipass purge`
 
 ```bash
-export WORKER_IP=`multipass info worker-001 --format=json | jq -r '.info."worker-001".ipv4[0]'`
+multipass launch -n manager --disk 10G --cloud-init cloud-init.yaml --verbose
+multipass transfer ./key manager:.ssh/key
+```
+
+### manager-get-ip
+
+```bash
+export MANAGER_IP=`multipass info manager --format=json | jq -r '.info."manager".ipv4[0]'`
+echo "$MANAGER_IP" > manager-ip.txt
+```
+
+### manager-ssh
+
+```bash
+export MANAGER_IP=`cat manager-ip.txt`
+echo $MANAGER_IP
+ssh worker@$MANAGER_IP
+```
+
+### worker-vm-create
+
+Create a new VM. If it already exists, delete it with `multipass delete worker`, then `multipass purge`
+
+```sh
+multipass launch -n worker --disk 10G --cloud-init cloud-init.yaml --verbose
+```
+
+### worker-get-ip
+
+```bash
+export WORKER_IP=`multipass info worker --format=json | jq -r '.info."worker".ipv4[0]'`
 echo "$WORKER_IP" > worker-ip.txt
 ```
 
-### ssh
+### worker-ssh
 
 ```bash
 export WORKER_IP=`cat worker-ip.txt`
@@ -24,7 +47,14 @@ echo $WORKER_IP
 ssh worker@$WORKER_IP
 ```
 
-### install-flake-registry-offline
+### worker-disable-outbound-internet
+
+```bash
+export WORKER_IP=`cat worker-ip.txt`
+ssh worker@$WORKER_IP 'sudo iptables -t filter -I OUTPUT 1 -m state --state NEW -j DROP'
+```
+
+### worker-install-flake-registry-offline
 
 ```bash
 export WORKER_IP=`cat worker-ip.txt`
@@ -36,7 +66,23 @@ ssh worker@$WORKER_IP 'sudo chmod 664 /etc/nix/flake-registry.json'
 ssh worker@$WORKER_IP 'sudo systemctl restart nix-daemon'
 ```
 
-### install-flake-utils
+### manager-copy-system-manager-to-worker
+
+```bash
+export MANAGER_IP=`cat manager-ip.txt`
+export WORKER_IP=`cat worker-ip.txt`
+echo "Enable SSH from the manager to the worker"
+ssh worker@$MANAGER_IP sudo cp /home/ubuntu/.ssh/key /home/worker/.ssh
+ssh worker@$MANAGER_IP sudo chmod 400 .ssh/key
+ssh worker@$MANAGER_IP chown worker:worker ~/.ssh/key
+ssh worker@$MANAGER_IP 'echo "IdentityFile /home/worker/.ssh/key" >> ~/.ssh/config'
+echo "Building on manager and pushing outputs and build deps to worker machine."
+ssh worker@$MANAGER_IP nix registry pin github:NixOS/nixpkgs/23.05
+ssh worker@$MANAGER_IP nix copy --no-check-sigs --to ssh-ng://worker@$WORKER_IP github:numtide/system-manager
+ssh worker@$MANAGER_IP nix copy --no-check-sigs --derivation --to ssh-ng://worker@$WORKER_IP github:numtide/system-manager
+```
+
+### copy-flake-utils-to-worker
 
 ```bash
 export WORKER_IP=`cat worker-ip.txt`
@@ -57,7 +103,7 @@ ssh worker@$WORKER_IP 'nix registry add "github:numtide/flake-utils" /flakes/git
 ssh worker@$WORKER_IP 'sudo systemctl restart nix-daemon'
 ```
 
-### install-system-manager
+### copy-system-manager-flake-to-worker
 
 ```bash
 export WORKER_IP=`cat worker-ip.txt`
@@ -75,12 +121,12 @@ ssh worker@$WORKER_IP 'cd /flakes && git clone system-manager.bundle /flakes/git
 echo "Updating flake registry to point at local copy."
 ssh worker@$WORKER_IP 'nix registry add "github:numtide/system-manager" /flakes/github.com/numtide/system-manager'
 ssh worker@$WORKER_IP 'sudo systemctl restart nix-daemon'
+```
 
-echo "Building locally and pushing outputs and build deps to remote machine."
-nix copy --no-check-sigs --to ssh-ng://worker@$WORKER_IP github:numtide/system-manager
-nix copy --no-check-sigs --derivation --to ssh-ng://worker@$WORKER_IP github:numtide/system-manager
+### worker-run-system-manager
 
-echo "Installing system-manager on remote machine."
+```bash
+export WORKER_IP=`cat worker-ip.txt`
 # ssh worker@$WORKER_IP 'bash -c "cd /flakes/github.com/numtide/system-manager && nix profile install --offline"'
 ssh worker@$WORKER_IP 'nix run "github:numtide/system-manager" --offline --debug'
 ```
