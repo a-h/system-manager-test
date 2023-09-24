@@ -11,8 +11,8 @@
         '';
       };
       systemPackages = [
-        pkgs.ripgrep
-        pkgs.fd
+        #pkgs.ripgrep
+        #pkgs.fd
         pkgs.hello
       ];
     };
