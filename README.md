@@ -36,15 +36,6 @@ Create a new VM. If it already exists, delete it with `multipass delete worker`,
 multipass launch -n worker --disk 10G --cpus 4 --memory 8G --cloud-init cloud-init.yaml --verbose
 ```
 
-### worker-disable-outbound-internet
-
-Disable the outbound network on the worker.
-
-```bash
-export WORKER_IP=`cat worker-ip.txt`
-ssh worker@$WORKER_IP 'sudo iptables -t filter -I OUTPUT 1 -m state --state NEW -j DROP'
-```
-
 ### worker-get-ip
 
 Get the worker IP and write it to `worker-ip.txt`.
@@ -52,6 +43,15 @@ Get the worker IP and write it to `worker-ip.txt`.
 ```bash
 export WORKER_IP=`multipass info worker --format=json | jq -r '.info."worker".ipv4[0]'`
 echo "$WORKER_IP" > worker-ip.txt
+```
+
+### worker-disable-outbound-internet
+
+Disable the outbound network on the worker.
+
+```bash
+export WORKER_IP=`cat worker-ip.txt`
+ssh worker@$WORKER_IP 'sudo iptables -t filter -I OUTPUT 1 -m state --state NEW -j DROP'
 ```
 
 ### worker-ssh
@@ -62,20 +62,6 @@ SSH into the worker.
 export WORKER_IP=`cat worker-ip.txt`
 echo $WORKER_IP
 ssh worker@$WORKER_IP
-```
-
-### worker-install-flake-registry-offline
-
-Install the offline flake registry into the worker.
-
-```bash
-export WORKER_IP=`cat worker-ip.txt`
-# wget https://raw.githubusercontent.com/NixOS/flake-registry/master/flake-registry.json
-scp $PWD/flake-registry.json worker@$WORKER_IP:/home/worker/registry.json
-ssh worker@$WORKER_IP 'sudo mv /home/worker/registry.json /etc/nix/flake-registry.json'
-ssh worker@$WORKER_IP 'sudo chown root:root /etc/nix/flake-registry.json'
-ssh worker@$WORKER_IP 'sudo chmod 664 /etc/nix/flake-registry.json'
-ssh worker@$WORKER_IP 'sudo systemctl restart nix-daemon'
 ```
 
 ### manager-copy-system-manager-to-worker
@@ -118,6 +104,7 @@ export WORKER_IP=`cat worker-ip.txt`
 ssh worker@$MANAGER_IP rm -rf /flakes/github.com/a-h/system-manager-test
 ssh worker@$MANAGER_IP mkdir -p /flakes/github.com/a-h
 scp -r $PWD worker@$MANAGER_IP:/flakes/github.com/a-h
+ssh worker@$MANAGER_IP sudo chown -R worker:worker /flakes
 # Build config locally and push the outputs to the remote machine.
 ssh worker@$MANAGER_IP "(cd /flakes/github.com/a-h/system-manager-test/machines/worker-001 && nix copy --no-check-sigs --to ssh-ng://worker@$WORKER_IP .#systemConfigs.default)"
 export STORE_PATH=`ssh worker@$MANAGER_IP "(cd /flakes/github.com/a-h/system-manager-test/machines/worker-001 && nix path-info .#systemConfigs.default)"`

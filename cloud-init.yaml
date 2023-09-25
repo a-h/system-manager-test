@@ -15,9 +15,5 @@ users:
 runcmd:
   - curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
   - echo "trusted-users = root worker" >> /etc/nix/nix.conf
-  - echo "flake-registry = /etc/nix/flake-registry.json" >> /etc/nix/nix.conf
   - # Restart daemon after config change.
   - sudo systemctl restart nix-daemon
-  - mkdir /flakes
-  - chown worker:worker /flakes
-
